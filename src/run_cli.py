@@ -1,79 +1,85 @@
+import os
+
 import cv2
-
-from ....core import verify_cheque
-from ....core.train_test import register, is_registered
-
-root = "../../db/"
+from core import Client
+# from .Scanner import scan_image
 
 
-def on_register_selected():
-    print("REGISTER NEW USER")
-    user_id = input("User ID (must be unique): ")
-    if is_registered(user_id, root_dir=root):
-        print("ERROR. User already exists.")
-        return
+class CLIClient(Client):
+    def __init__(self):
+        super().__init__(feature_model='../../db/models/signet.pth',
+                         canvas_size=(150, 220),
+                         segmentation_model='../../db/models/versign_segment.pkl',
+                         data_path='../db/app_data/')
 
-    prompt = "Put signature specimen paper in scanner and hit [Enter]"
-    input(prompt)
+    def on_register_selected(self):
+        print("REGISTER NEW USER")
+        user_id = input("User ID (must be unique): ")
+        if self.contains_user(user_id):
+            print("ERROR. User ID already exists.")
+            return
 
-    # filename = scanImage(outfile=userId)
-    filename = "../res/004_SH1_G.png"
+        # Get image from scanner
+        # prompt = "Put signature specimen paper in scanner and hit [Enter]"
+        # input(prompt)
+        # filename = scan_image(outfile=userId)
+        filename = "/Volumes/MAXTOR/Work/Research/Signature Verification/Research Material/Datasets/Collected/Signatures/Raw/0000-SH2-G.png"
+        if not os.path.exists(filename):
+            print("FILE NOT FOUND")
+            return
 
-    refSigns = cv2.imread(filename, 0)
+        # Open and crop the image
+        ref_signs = cv2.imread(filename, 0)
+        h, w = ref_signs.shape
+        x, y = int(0.025 * w), int(0.025 * h)
+        w, h = w - 2 * x, h - 2 * y
+        ref_signs = ref_signs[y:y + h, x:x + w]
 
-    h, w = refSigns.shape
-    x = int(0.025 * w)
-    y = int(0.025 * h)
-    w = w - 2 * x
-    h = h - 2 * y
-    refSigns = refSigns[y:y + h, x:x + w]
+        if self.register(user_id, signature_grid=ref_signs):
+            print("Enrollment successful")
+        else:
+            print("ERROR. User ID already exists.")
 
-    h, w = refSigns.shape
-    if register(user_id, refSigns, root_dir=root):
-        print("Enrollment successful")
-    else:
-        print("ERROR. User ID already exists.")
+    def on_verify_selected(self):
+        print("VERIFY SIGNATURE")
+        user_id = input("User ID: ")
+        if not self.contains_user(user_id):
+            print("ERROR. No such user.")
+            return
 
+        # prompt = "Put the bank cheque in scanner and hit [Enter]"
+        # input(prompt)
+        # filename = scanImage(outfile=userId)
+        filename = "../../db/datasets/Segmentation/TestSet/CHECK_10.jpg"
 
-def on_verify_selected():
-    print("VERIFY SIGNATURE")
-    user_id = input("User ID: ")
-    if not is_registered(user_id, root_dir=root):
-        print("ERROR. No such user.")
-        return
+        if self.test(user_id, image=cv2.imread(filename, 0), is_check=True):
+            print("Verification Result: GENUINE")
+        else:
+            print("Verification Result: FORGED")
 
-    prompt = "Put the bank cheque in scanner and hit [Enter]"
-    input(prompt)
-
-    # filename = scanImage(outfile=userId)
-    filename = "../res/sample_cheque_mahad.png"
-
-    cheque = cv2.imread(filename, 0)
-    result = verify_cheque(user_id, cheque, root_dir=root)
-    if result is True:
-        print("Verification Result: GENUINE")
-    else:
-        print("Verification Result: FORGED")
+    def run(self):
+        print("VERSIGN: AUTOMATIC SIGNATURE VERIFICATION SYSTEM")
+        options = ["1", "2", "0"]
+        prompt = "\
+        Select an option (0 to end):\n \
+        \t1: Register new customer\n \
+        \t2: Verify a signature\n \
+        \t\t? "
+        choice = str(input(prompt))
+        while choice != "0":
+            if choice in options:
+                if choice == "1":
+                    self.on_register_selected()
+                elif choice == "2":
+                    self.on_verify_selected()
+            else:
+                print("Invalid choice. Please select again.")
+            choice = str(input(prompt))
 
 
 def main():
-    print("VERSIGN: AUTOMATIC SIGNATURE VERIFICATION SYSTEM")
-    options = ["1", "2", "0"]
-    prompt = "\
-    Select an option (0 to end):\n \
-    \t1: Register new customer\n \
-    \t2: Verify a signature\n \
-    \t\t? "
-    choice = str(input(prompt))
-    while choice is not "0":
-        if choice in options:
-            if choice is "1":
-                on_register_selected()
-            elif choice is "2":
-                on_verify_selected()
-        else:
-            print("Invalid choice. Please select again.")
-        choice = str(input(prompt))
+    client = CLIClient()
+    client.run()
 
 
 if __name__ == "__main__":

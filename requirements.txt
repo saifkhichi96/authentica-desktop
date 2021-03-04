@@ -1,0 +1,4 @@
+versign
+git+git://github.com/luizgh/visdom_logger#egg=visdom_logger
+git+https://github.com/luizgh/sigver.git
+tk
