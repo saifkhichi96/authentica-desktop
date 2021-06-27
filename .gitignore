@@ -21,3 +21,7 @@ venv.bak/
 # Datasets
 db/
 *.psd
+
+# OS files
+.DS_STORE
+Icon?
